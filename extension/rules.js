@@ -1,38 +1,43 @@
+const SUSPICIOUS_WORDS = ["urgent", "verify", "claim", "reward"];
+
 function getLevel(score) {
   if (score >= 5) return "High Risk";
   if (score >= 2) return "Suspicious";
   return "Safe";
 }
 
+function cannotScan(reason) {
+  return { score: 0, level: "Can't scan", reasons: [reason] };
+}
+
 export function analyzeUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (error) {
+    return cannotScan("Not a valid URL.");
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return cannotScan("Only http and https pages can be scanned.");
+  }
+
   let reasons = [];
   let score = 0;
 
-  if (!url.startsWith("https")) {
-    reasons.push("Not using HTTPS");
-    score = score + 2;
+  if (parsed.protocol === "http:") {
+    reasons.push("Connection is not encrypted (HTTP, not HTTPS).");
+    score += 2;
   }
 
-  let suspiciousWords = ["urgent", "verify", "claim", "reward"];
-  let keywordCount = 0;
-  for (let word of suspiciousWords) {
-    if (url.includes(word)) {
-      keywordCount = keywordCount + 1;
-    }
+  // Query string (?...) aur fragment (#...) jaanbujh kar ignore hain.
+  const textToCheck = (parsed.hostname + parsed.pathname).toLowerCase();
+  const matched = SUSPICIOUS_WORDS.filter(word => textToCheck.includes(word));
+
+  if (matched.length > 0) {
+    score += Math.min(matched.length, 3);
+    reasons.push("Suspicious word(s) in the address: " + matched.join(", ") + ".");
   }
 
-  if (keywordCount > 0) {
-    let pointsToAdd = keywordCount;
-    if (pointsToAdd > 3) {
-      pointsToAdd = 3;
-    }
-    reasons.push("Contains " + keywordCount + " suspicious keyword(s)");
-    score = score + pointsToAdd;
-  }
-
-  return {
-    score: score,
-    level: getLevel(score),
-    reasons: reasons
-  };
+  return { score: score, level: getLevel(score), reasons: reasons };
 }
