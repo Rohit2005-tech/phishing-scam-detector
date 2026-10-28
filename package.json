@@ -1,0 +1,8 @@
+{
+  "name": "phishing-scam-detector",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
